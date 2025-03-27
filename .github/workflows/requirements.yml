@@ -1,0 +1,45 @@
+name: Generate Requirements.txt
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'pyproject.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+jobs:
+  generate-requirements:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Install uv
+        run: |
+          pip install uv
+      
+      - name: Generate requirements.txt
+        run: |
+          uv pip install -e .
+          uv pip freeze > requirements.txt
+      
+      - name: Commit requirements.txt
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add requirements.txt
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update requirements.txt"
+      
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
