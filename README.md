@@ -33,6 +33,8 @@ OPENAI_API_KEY="your_openai_api_key"
 
 ```bash
 uv add -r requirements.txt
+uv sync
+source .venv/bin/activate
 ```
 
 ## Usage
