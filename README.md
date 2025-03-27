@@ -87,46 +87,9 @@ uv run ruff check .
 uv run mypy .
 ```
 
-## Deployment to Heroku
-
-This application is configured for deployment to Heroku using the GitHub integration.
-
-### Prerequisites
-
-1. A Heroku account
-2. The application pushed to GitHub
-
-### Deployment Steps
-
-1. Create a new Heroku app
-2. Connect the app to your GitHub repository
-3. Enable automatic deploys from the main branch
-4. Set the following config vars in Heroku:
-   - `QDRANT_API_KEY`: Your Qdrant API key
-   - `QDRANT_URL`: Your Qdrant URL
-
-The application uses the following files for Heroku deployment:
-- `Procfile`: Defines the command to run the web server
-- `runtime.txt`: Specifies Python 3.13.2 as the runtime
-
-### Manual Deployment
-
-If you prefer to deploy manually:
-
-```bash
-# Login to Heroku
-heroku login
-
-# Add Heroku remote
-heroku git:remote -a your-heroku-app-name
-
-# Push to Heroku
-git push heroku main
-```
-
 ## Containerized Deployment
 
-This application can be run in a container using Podman, which is useful for consistent deployment across environments and avoiding size limitations on platforms like Heroku.
+This application can be run in a container using Podman, which is useful for consistent deployment across environments.
 
 ### Prerequisites
 
@@ -163,8 +126,9 @@ podman run -p 8000:8000 \
 For easier management, you can use Podman Compose:
 
 1. Make sure your `.env` file is set up with the required variables:
-   - `QDRANT_URL`: URL of your Qdrant instance
-   - `QDRANT_API_KEY`: API key for Qdrant (if required)
+   - `QDRANT_URL`: URL of your Qdrant instance (only needed for cloud Qdrant)
+   - `QDRANT_API_KEY`: API key for Qdrant (only needed for cloud Qdrant)
+   - `USE_LOCAL_QDRANT`: Set to "true" to use a local Qdrant instance via container
 
 2. Run the application with Podman Compose:
 
@@ -178,40 +142,69 @@ podman-compose up -d
 podman-compose down
 ```
 
-### Deploying to Heroku with Containers
+### Using Local Qdrant vs Cloud Qdrant
 
-1. Make sure you have the Heroku CLI installed and are logged in:
+The application supports two modes for connecting to Qdrant:
 
-```bash
-heroku login
-```
+1. **Cloud Qdrant** (default): Connects to a remote Qdrant instance using the provided URL and API key.
+   - Set `USE_LOCAL_QDRANT="false"` in your `.env` file
+   - Provide `QDRANT_URL` and `QDRANT_API_KEY` in your `.env` file
 
-2. Set up the Heroku app (if not already created):
+2. **Local Qdrant**: Runs a Qdrant container alongside the application.
+   - Set `USE_LOCAL_QDRANT="true"` in your `.env` file
+   - No need to provide `QDRANT_URL` or `QDRANT_API_KEY`
+   - Data is persisted in a Docker volume
 
-```bash
-heroku create your-app-name
-```
-
-3. Set the stack to container:
-
-```bash
-heroku stack:set container -a your-app-name
-```
-
-4. Set the required environment variables:
+To switch between modes:
 
 ```bash
-heroku config:set QDRANT_URL=your_qdrant_url -a your-app-name
-heroku config:set QDRANT_API_KEY=your_qdrant_api_key -a your-app-name
+# For cloud Qdrant
+echo "USE_LOCAL_QDRANT=false" >> .env
+echo "QDRANT_URL=your_cloud_url" >> .env
+echo "QDRANT_API_KEY=your_api_key" >> .env
+
+# For local Qdrant
+echo "USE_LOCAL_QDRANT=true" >> .env
 ```
 
-5. Push to Heroku:
+When using local Qdrant, you'll need to populate the collections after starting the containers.
+
+### GitHub Packages Deployment
+
+This project is configured to automatically build and push Docker images to GitHub Packages when changes are pushed to the main branch and tests pass.
+
+#### Using the GitHub Packages Image
+
+1. Authenticate with GitHub Packages:
 
 ```bash
-git push heroku main
+echo $GITHUB_TOKEN | podman login ghcr.io -u USERNAME --password-stdin
 ```
 
-The application will use the `heroku.yml` file to build and deploy the container.
+2. Pull the latest image:
+
+```bash
+podman pull ghcr.io/impactinc/search_suggest:latest
+```
+
+3. Run the container:
+
+```bash
+podman run -p 8000:8000 \
+  --env-file .env \
+  ghcr.io/impactinc/search_suggest:latest
+```
+
+#### CI/CD Pipeline
+
+The GitHub Actions workflow in `.github/workflows/requirements.yml` handles:
+
+1. Running tests on all pull requests and pushes to main
+2. Building multi-architecture Docker images (amd64 and arm64)
+3. Pushing images to GitHub Packages with appropriate tags:
+   - `latest` - always points to the most recent build from main
+   - `main` - the latest build from the main branch
+   - `sha-<commit>` - specific commit hash for precise version control
 
 ## Local Embedding Models
 

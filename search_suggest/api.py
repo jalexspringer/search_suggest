@@ -100,14 +100,22 @@ def get_vector_store() -> VectorStore:
     """
     global vector_store
     if vector_store is None:
-        qdrant_url = os.getenv("QDRANT_URL")
-        qdrant_api_key = os.getenv("QDRANT_API_KEY")
-        if not qdrant_url or not qdrant_api_key:
-            raise HTTPException(
-                status_code=500, 
-                detail="QDRANT_URL or QDRANT_API_KEY environment variable is not set"
-            )
-        vector_store = VectorStore(url=qdrant_url, api_key=qdrant_api_key)
+        # Check if we should use a local Qdrant instance
+        use_local_qdrant = os.getenv("USE_LOCAL_QDRANT", "false").lower() in ("true", "1", "yes")
+        
+        if use_local_qdrant:
+            # Use local Qdrant instance (no API key needed)
+            vector_store = VectorStore()
+        else:
+            # Use cloud Qdrant instance
+            qdrant_url = os.getenv("QDRANT_URL")
+            qdrant_api_key = os.getenv("QDRANT_API_KEY")
+            if not qdrant_url:
+                raise HTTPException(
+                    status_code=500, 
+                    detail="QDRANT_URL environment variable is not set"
+                )
+            vector_store = VectorStore(url=qdrant_url, api_key=qdrant_api_key)
     return vector_store
 
 def get_collection_for_model(model: str) -> str:

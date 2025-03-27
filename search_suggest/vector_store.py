@@ -3,6 +3,8 @@ Vector store functionality using Qdrant.
 """
 from typing import Dict, List, Optional, Tuple, Any
 import uuid
+import os
+from distutils.util import strtobool
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -11,14 +13,31 @@ from qdrant_client.http import models
 class VectorStore:
     """Vector store for managing embeddings in Qdrant."""
 
-    def __init__(self, url: str, api_key: str):
+    def __init__(self, url: Optional[str] = None, api_key: Optional[str] = None):
         """Initialize the vector store.
 
         Args:
-            url: Qdrant server URL
-            api_key: Qdrant API key
+            url: Qdrant server URL (optional if using environment variables)
+            api_key: Qdrant API key (optional if using environment variables)
         """
-        self.client = QdrantClient(url=url, api_key=api_key)
+        # Check if we should use a local Qdrant instance
+        use_local_qdrant = bool(strtobool(os.environ.get("USE_LOCAL_QDRANT", "false").lower()))
+        
+        if use_local_qdrant:
+            # Use the local Qdrant URL from environment variable or default to the container service name
+            local_url = os.environ.get("LOCAL_QDRANT_URL", "http://qdrant:6333")
+            self.client = QdrantClient(url=local_url)
+            print(f"Using local Qdrant instance at {local_url}")
+        else:
+            # Use the provided URL and API key or get from environment variables
+            url = url or os.environ.get("QDRANT_URL", "")
+            api_key = api_key or os.environ.get("QDRANT_API_KEY", "")
+            
+            if not url:
+                raise ValueError("Qdrant URL must be provided either directly or via QDRANT_URL environment variable")
+                
+            self.client = QdrantClient(url=url, api_key=api_key)
+            print(f"Using remote Qdrant instance at {url}")
         
     def create_collection(
         self, 

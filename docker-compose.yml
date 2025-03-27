@@ -9,11 +9,40 @@ services:
       - .env
     environment:
       - PORT=8000
+      # This can be overridden to use local Qdrant
+      - USE_LOCAL_QDRANT=${USE_LOCAL_QDRANT:-false}
+      # Only used when USE_LOCAL_QDRANT=true
+      - LOCAL_QDRANT_URL=http://qdrant:6333
     volumes:
       # Mount a volume for model caching to improve startup time
       - model_cache:/tmp/model_cache
     restart: unless-stopped
+    depends_on:
+      # Only start after Qdrant if using local instance
+      - qdrant
+    networks:
+      - search-suggest-network
+
+  # Local Qdrant service (only used when USE_LOCAL_QDRANT=true)
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - search-suggest-network
+    profiles:
+      # Only start this service when USE_LOCAL_QDRANT=true
+      - ${USE_LOCAL_QDRANT:-disabled}
 
 volumes:
   model_cache:
     # This volume will persist the model cache between container restarts
+  qdrant_data:
+    # This volume will persist Qdrant data between container restarts
+
+networks:
+  search-suggest-network:
+    driver: bridge

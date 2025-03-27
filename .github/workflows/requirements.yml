@@ -1,18 +1,19 @@
-name: Generate Requirements and Optimize for Heroku
+name: Build and Deploy Container
 
 on:
   push:
     branches: [ main ]
     paths:
       - 'pyproject.toml'
+      - 'search_suggest/**'
+      - 'Dockerfile'
+      - '.github/workflows/requirements.yml'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'pyproject.toml'
   workflow_dispatch:
 
 jobs:
-  generate-requirements:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,29 +27,55 @@ jobs:
         run: |
           pip install uv
       
-      - name: Generate requirements.txt
+      - name: Install dependencies
         run: |
-          uv pip install -e .
-          uv pip freeze > requirements.txt
+          uv pip install -e ".[dev]"
       
-      - name: Optimize requirements.txt for Heroku
+      - name: Run tests
         run: |
-          # Remove development dependencies to reduce slug size
-          grep -v "black\|mypy\|pytest\|ruff" requirements.txt > requirements.optimized.txt
-          mv requirements.optimized.txt requirements.txt
-          
-          # Add a comment to indicate this is an optimized file
-          sed -i '1i# Optimized requirements.txt for Heroku deployment - generated from pyproject.toml' requirements.txt
+          pytest
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
       
-      - name: Commit requirements.txt
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add requirements.txt
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update optimized requirements.txt for Heroku"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       
-      - name: Push changes
-        uses: ad-m/github-push-action@master
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            latest
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
