@@ -26,7 +26,12 @@ jobs:
       - name: Install uv
         run: |
           pip install uv
-      
+      - name: Create uv venv
+        run: |
+          uv venv
+      - name: Activate uv venv
+        run: |
+          uv venv activate
       - name: Install dependencies
         run: |
           uv pip install -e ".[dev]"
