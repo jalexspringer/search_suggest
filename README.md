@@ -32,24 +32,10 @@ OPENAI_API_KEY="your_openai_api_key"
 2. Install dependencies:
 
 ```bash
-uv add --all
+uv add -r requirements.txt
 ```
 
 ## Usage
-
-### Populate the Database
-
-Before using the API, you need to populate the Qdrant database with taxonomy embeddings:
-
-```bash
-uv run python -m search_suggest.cli populate
-```
-
-Options:
-- `--taxonomy-file`: Path to the taxonomy file (default: data/taxonomy.txt)
-- `--max-level`: Maximum level of categories to include (default: 3)
-- `--collection`: Name of the Qdrant collection (default: merchant_categories)
-- `--embedding-model`: Name of the embedding model to use (default: BAAI/bge-small-en-v1.5)
 
 ### Run the API Server
 
