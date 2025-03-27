@@ -124,6 +124,95 @@ heroku git:remote -a your-heroku-app-name
 git push heroku main
 ```
 
+## Containerized Deployment
+
+This application can be run in a container using Podman, which is useful for consistent deployment across environments and avoiding size limitations on platforms like Heroku.
+
+### Prerequisites
+
+- [Podman](https://podman.io/getting-started/installation) installed on your system
+- [Podman Compose](https://github.com/containers/podman-compose) for multi-container setups
+
+### Building and Running with Podman
+
+1. Build the container image:
+
+```bash
+podman build -t search-suggest .
+```
+
+2. Run the container with environment variables:
+
+```bash
+podman run -p 8000:8000 \
+  --env-file .env \
+  search-suggest
+```
+
+Alternatively, you can specify environment variables directly:
+
+```bash
+podman run -p 8000:8000 \
+  -e QDRANT_URL=your_qdrant_url \
+  -e QDRANT_API_KEY=your_qdrant_api_key \
+  search-suggest
+```
+
+### Using Podman Compose
+
+For easier management, you can use Podman Compose:
+
+1. Make sure your `.env` file is set up with the required variables:
+   - `QDRANT_URL`: URL of your Qdrant instance
+   - `QDRANT_API_KEY`: API key for Qdrant (if required)
+
+2. Run the application with Podman Compose:
+
+```bash
+podman-compose up -d
+```
+
+3. To stop the application:
+
+```bash
+podman-compose down
+```
+
+### Deploying to Heroku with Containers
+
+1. Make sure you have the Heroku CLI installed and are logged in:
+
+```bash
+heroku login
+```
+
+2. Set up the Heroku app (if not already created):
+
+```bash
+heroku create your-app-name
+```
+
+3. Set the stack to container:
+
+```bash
+heroku stack:set container -a your-app-name
+```
+
+4. Set the required environment variables:
+
+```bash
+heroku config:set QDRANT_URL=your_qdrant_url -a your-app-name
+heroku config:set QDRANT_API_KEY=your_qdrant_api_key -a your-app-name
+```
+
+5. Push to Heroku:
+
+```bash
+git push heroku main
+```
+
+The application will use the `heroku.yml` file to build and deploy the container.
+
 ## Local Embedding Models
 
 This application uses local sentence-transformers models for generating embeddings, which offers several advantages:

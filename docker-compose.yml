@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+    volumes:
+      # Mount a volume for model caching to improve startup time
+      - model_cache:/tmp/model_cache
+    restart: unless-stopped
+
+volumes:
+  model_cache:
+    # This volume will persist the model cache between container restarts
