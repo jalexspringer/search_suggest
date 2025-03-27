@@ -1,0 +1,27 @@
+{
+  "name": "Search Suggest",
+  "description": "Semantic search API for Google merchant categories",
+  "repository": "https://github.com/ImpactInc/search_suggest",
+  "keywords": ["python", "fastapi", "semantic-search", "sentence-transformers"],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "env": {
+    "PYTHON_VERSION": {
+      "description": "Python version to use",
+      "value": "3.13.0"
+    },
+    "SENTENCE_TRANSFORMERS_HOME": {
+      "description": "Directory for caching sentence-transformers models",
+      "value": "/tmp/sentence_transformers"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "standard-2x"
+    }
+  }
+}

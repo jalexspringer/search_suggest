@@ -1,4 +1,4 @@
-name: Generate Requirements.txt
+name: Generate Requirements and Optimize for Heroku
 
 on:
   push:
@@ -31,12 +31,21 @@ jobs:
           uv pip install -e .
           uv pip freeze > requirements.txt
       
+      - name: Optimize requirements.txt for Heroku
+        run: |
+          # Remove development dependencies to reduce slug size
+          grep -v "black\|mypy\|pytest\|ruff" requirements.txt > requirements.optimized.txt
+          mv requirements.optimized.txt requirements.txt
+          
+          # Add a comment to indicate this is an optimized file
+          sed -i '1i# Optimized requirements.txt for Heroku deployment - generated from pyproject.toml' requirements.txt
+      
       - name: Commit requirements.txt
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add requirements.txt
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update requirements.txt"
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update optimized requirements.txt for Heroku"
       
       - name: Push changes
         uses: ad-m/github-push-action@master

@@ -3,6 +3,9 @@ Embedding functionality for generating vector representations of text.
 """
 from typing import Dict, List, Optional, Any
 import logging
+import os
+import tempfile
+from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
@@ -53,19 +56,40 @@ RECOMMENDED_MODELS = {
     }
 }
 
+# Default model to use if none is specified
+DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
+
+# Check if running on Heroku
+IS_HEROKU = os.environ.get("DYNO") is not None
+
+# Set up model cache directory
+if IS_HEROKU:
+    # On Heroku, use /tmp directory which is writable but ephemeral
+    CACHE_DIR = Path(tempfile.gettempdir()) / "model_cache"
+else:
+    # In local development, use the default cache location
+    CACHE_DIR = None
+
+# Ensure cache directory exists if specified
+if CACHE_DIR is not None:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Using model cache directory: {CACHE_DIR}")
+
 class EmbeddingService:
     """Service for generating embeddings from text."""
     
-    def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
+    def __init__(self, model_name: str = DEFAULT_MODEL):
         """Initialize the embedding service.
         
         Args:
             model_name: Name of the sentence-transformers model to use
         """
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name)
+        
+        # Load the model with cache directory if on Heroku
+        self.model = self._load_model(model_name)
         self.embedding_dimension = self.model.get_sentence_embedding_dimension()
-        logger.info(f"Loaded local embedding model: {model_name}")
+        logger.info(f"Loaded embedding model: {model_name}")
         logger.info(f"Embedding dimension: {self.embedding_dimension}")
         
         # Cache for other models
@@ -130,8 +154,25 @@ class EmbeddingService:
         """
         if model_name not in self.models:
             logger.info(f"Loading model: {model_name}")
-            self.models[model_name] = SentenceTransformer(model_name)
+            self.models[model_name] = self._load_model(model_name)
         return self.models[model_name]
+    
+    def _load_model(self, model_name: str) -> SentenceTransformer:
+        """Load a model with appropriate caching based on environment.
+        
+        Args:
+            model_name: Name of the model to load
+            
+        Returns:
+            SentenceTransformer model
+        """
+        if IS_HEROKU:
+            logger.info(f"Loading model on Heroku: {model_name}")
+            # Use the temp directory cache on Heroku
+            return SentenceTransformer(model_name, cache_folder=str(CACHE_DIR))
+        else:
+            # Use default caching behavior locally
+            return SentenceTransformer(model_name)
     
     @classmethod
     def list_recommended_models(cls) -> Dict[str, Dict[str, Any]]:

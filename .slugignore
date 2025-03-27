@@ -1,0 +1,15 @@
+# Exclude test files
+tests/
+pytest.ini
+run_tests.sh
+
+# Exclude development files
+.github/
+.gitignore
+.python-version
+.windsurfrules
+
+# Exclude large model files - these will be downloaded at runtime
+*.pt
+*.bin
+*.onnx
