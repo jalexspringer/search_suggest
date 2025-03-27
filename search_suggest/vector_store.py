@@ -56,6 +56,40 @@ class VectorStore:
                 distance=distance_enum,
             )
         )
+    
+    def list_collections(self) -> List[Dict[str, Any]]:
+        """List all collections in the vector store.
+        
+        Returns:
+            List of collections with their information
+        """
+        collections = self.client.get_collections().collections
+        result = []
+        
+        for collection in collections:
+            # Get collection info
+            try:
+                collection_info = self.client.get_collection(collection.name)
+                vector_count = collection_info.vectors_count
+                
+                # Get collection config
+                config = collection_info.config
+                vector_size = config.params.vectors.size if config.params.vectors else 0
+                
+                result.append({
+                    "name": collection.name,
+                    "vector_count": vector_count,
+                    "vector_size": vector_size,
+                    "created_at": str(collection_info.created_at) if hasattr(collection_info, "created_at") else None
+                })
+            except Exception as e:
+                # If we can't get detailed info, just add the basic info
+                result.append({
+                    "name": collection.name,
+                    "error": str(e)
+                })
+        
+        return result
         
     def upsert_vectors(
         self, 
@@ -99,6 +133,21 @@ class VectorStore:
             collection_name=collection_name,
             points=points
         )
+    
+    def delete_collection(self, collection_name: str) -> bool:
+        """Delete a collection from the vector store.
+        
+        Args:
+            collection_name: Name of the collection to delete
+            
+        Returns:
+            True if the collection was deleted, False if it didn't exist
+        """
+        try:
+            self.client.delete_collection(collection_name=collection_name)
+            return True
+        except Exception:
+            return False
         
     def search(
         self, 

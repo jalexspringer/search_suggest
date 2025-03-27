@@ -4,4 +4,4 @@ Use fastapi run and fastapi dev commands instead of uvicorn directly
 Write well documented code that follows python best practices including type safety and bias towards modern functional programming.
 Secrets are kept in the .env file which is in .gitignore. Add any secrets needed to .env.example and I will copy from there.
 Use podman instead of docker
-We want to deploy to Heroku using the heroku container registry. I've aliased docker=podman on the command line and the heroku CLI is installed.
+We want to deploy to Heroku using the github integration.

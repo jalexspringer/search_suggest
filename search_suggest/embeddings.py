@@ -68,37 +68,70 @@ class EmbeddingService:
         logger.info(f"Loaded local embedding model: {model_name}")
         logger.info(f"Embedding dimension: {self.embedding_dimension}")
         
-    def create_embedding(self, text: str) -> List[float]:
+        # Cache for other models
+        self.models = {model_name: self.model}
+        
+    def create_embedding(self, text: str, model_name: Optional[str] = None) -> List[float]:
         """Create an embedding for a single text.
         
         Args:
             text: Text to embed
+            model_name: Optional model name to use instead of the default
             
         Returns:
             Embedding vector
         """
+        # Use specified model or default
+        if model_name and model_name != self.model_name:
+            model = self._get_model(model_name)
+        else:
+            model = self.model
+            model_name = self.model_name
+            
         # For BGE models, add a prefix to improve retrieval performance
-        if "bge" in self.model_name.lower():
+        if "bge" in model_name.lower():
             text = f"Represent this sentence for searching relevant passages: {text}"
             
-        embedding = self.model.encode(text)
+        embedding = model.encode(text)
         return embedding.tolist()
         
-    def create_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
+    def create_embeddings_batch(self, texts: List[str], model_name: Optional[str] = None) -> List[List[float]]:
         """Create embeddings for a batch of texts.
         
         Args:
             texts: List of texts to embed
+            model_name: Optional model name to use instead of the default
             
         Returns:
             List of embedding vectors
         """
+        # Use specified model or default
+        if model_name and model_name != self.model_name:
+            model = self._get_model(model_name)
+        else:
+            model = self.model
+            model_name = self.model_name
+            
         # For BGE models, add a prefix to improve retrieval performance
-        if "bge" in self.model_name.lower():
+        if "bge" in model_name.lower():
             texts = [f"Represent this sentence for searching relevant passages: {text}" for text in texts]
             
-        embeddings = self.model.encode(texts)
+        embeddings = model.encode(texts)
         return embeddings.tolist()
+    
+    def _get_model(self, model_name: str) -> SentenceTransformer:
+        """Get or load a model by name.
+        
+        Args:
+            model_name: Name of the model to get
+            
+        Returns:
+            SentenceTransformer model
+        """
+        if model_name not in self.models:
+            logger.info(f"Loading model: {model_name}")
+            self.models[model_name] = SentenceTransformer(model_name)
+        return self.models[model_name]
     
     @classmethod
     def list_recommended_models(cls) -> Dict[str, Dict[str, Any]]:
