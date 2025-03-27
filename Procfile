@@ -1,0 +1,1 @@
+web: uv run uvicorn search_suggest.api:app --host=0.0.0.0 --port=$PORT

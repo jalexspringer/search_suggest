@@ -9,6 +9,7 @@ from fastapi import FastAPI, Query, Depends, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
+from enum import Enum
 
 from search_suggest.embeddings import EmbeddingService, RECOMMENDED_MODELS
 from search_suggest.vector_store import VectorStore
@@ -27,6 +28,19 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 # Global services
 embedding_services: Dict[str, EmbeddingService] = {}
 vector_store: Optional[VectorStore] = None
+
+# Create an Enum for model selection in the API docs
+class EmbeddingModelEnum(str, Enum):
+    """Enum for embedding models."""
+    # Add all recommended models as enum values
+    # This will create a dropdown in the FastAPI docs
+    MINI_LM = "all-MiniLM-L6-v2"
+    BGE_SMALL = "BAAI/bge-small-en-v1.5"
+    BGE_BASE = "BAAI/bge-base-en-v1.5"
+    E5_SMALL = "intfloat/e5-small-v2"
+    MPNET_BASE = "sentence-transformers/all-mpnet-base-v2"
+    MINI_LM_QA = "sentence-transformers/multi-qa-MiniLM-L6-cos-v1"
+    MSMARCO = "sentence-transformers/msmarco-MiniLM-L6-cos-v5"
 
 # Pydantic models for request/response
 class SearchResult(BaseModel):
@@ -54,7 +68,7 @@ class CollectionInfo(BaseModel):
 class ComparisonRequest(BaseModel):
     """Comparison request model."""
     query: str = Field(..., description="Search query")
-    models: List[str] = Field(..., description="Models to compare")
+    models: List[EmbeddingModelEnum] = Field(..., description="Models to compare")
     limit: int = Field(10, description="Maximum number of results to return")
 
 class ComparisonResult(BaseModel):
@@ -167,7 +181,7 @@ def list_collections(
 @app.get("/search", response_model=List[SearchResult])
 def search(
     query: str = Query(..., description="Search query"),
-    model: str = Query("sentence-transformers/msmarco-MiniLM-L6-cos-v5", description="Embedding model to use"),
+    model: EmbeddingModelEnum = Query(EmbeddingModelEnum.BGE_SMALL, description="Embedding model to use"),
     limit: int = Query(10, description="Maximum number of results to return"),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
     vector_store: VectorStore = Depends(get_vector_store)
@@ -187,11 +201,14 @@ def search(
     import time
     start_time = time.time()
     
+    # Get the string value from the Enum
+    model_name = model.value
+    
     # Create embedding for the query
-    query_embedding = embedding_service.create_embedding(query, model_name=model)
+    query_embedding = embedding_service.create_embedding(query, model_name=model_name)
     
     # Determine the collection name based on the model
-    collection_name = get_collection_for_model(model)
+    collection_name = get_collection_for_model(model_name)
     
     # Search for similar categories
     raw_results = vector_store.search(
@@ -237,9 +254,12 @@ def compare(
     """
     results = []
     
-    for model_name in request.models:
+    for model_enum in request.models:
         import time
         start_time = time.time()
+        
+        # Get the string value from the Enum
+        model_name = model_enum.value
         
         # Create embedding for the query
         query_embedding = embedding_service.create_embedding(
